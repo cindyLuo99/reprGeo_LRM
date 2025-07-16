@@ -6,15 +6,29 @@ import numpy as np
 import seaborn as sns
 import torch
 from sklearn.decomposition import PCA
+import matplotlib.ticker as mticker
 
 DEFAULT_FONTS = dict(
   title=16, axis=14, ticks=12, legend=10, annotation=12
 )
 DEFAULT_COLORS = {'base':'#5B0A0B','mod':'#E41A1C','shift':'#f04a00'}
 
+LAYER_NAME_MAP = {
+  "feedforward_features_0":   "Conv1 Pre-ReLU",
+  "feedforward_features_6":   "Conv3 Pre-ReLU",
+  "feedforward_features_10":  "Conv5 Pre-ReLU",
+  "feedforward_features_1":  "Conv1",
+  "feedforward_features_4":  "Conv2",
+  "feedforward_features_7":  "Conv3",
+  "feedforward_features_9":  "Conv4",
+  "feedforward_features_11": "Conv5",
+  "feedforward_classifier_1": "FC6",
+  "feedforward_classifier_6": "Output"
+}
+
 def plot_distance_change_histogram(
     distances_baseline, distances_modulated, category_labels, dist_metric_name="cosine",
-    save_path='reprGeo_default/figures/'
+    save_path='reprGeo_default/figures/', layer_name='output', show_layer_name: bool = False
 ):
     """
     Plots a histogram of the change in exemplar-prototype distances
@@ -83,7 +97,11 @@ def plot_distance_change_histogram(
     plt.axvline(0, color='black', linestyle=':', linewidth=1.3, label='No Change') # Reference line at zero
 
     # Improve readability with larger fonts and updated labels
-    plt.title('Change in Cluster Size \n(Modulated - Baseline)', fontsize=DEFAULT_FONTS['title']) # Kept user's title
+    base_title = 'Change in Cluster Size \n(Modulated - Baseline)'
+    quick_layer_label = LAYER_NAME_MAP.get(layer_name, layer_name)
+    full_title = f"{base_title}\n{quick_layer_label}" if show_layer_name else base_title
+
+    plt.title(full_title, fontsize=DEFAULT_FONTS['title']) # Kept user's title
     plt.xlabel(f'Distance Difference ({dist_metric_name})', fontsize=DEFAULT_FONTS['axis'])
     plt.ylabel('Frequency', fontsize=DEFAULT_FONTS['axis']) # Kept user's y-label
     plt.xticks(fontsize=DEFAULT_FONTS['ticks'])
@@ -102,7 +120,7 @@ def plot_distance_change_histogram(
 
     plt.legend(fontsize=DEFAULT_FONTS['legend'])
     plt.tight_layout()
-    plt.savefig(f'{save_path}/Histogram of Differences-Local.pdf', bbox_inches='tight') # Kept user's savefig line
+    plt.savefig(f'{save_path}{layer_name}_Histogram of Differences-Local.pdf', bbox_inches='tight') # Kept user's savefig line
     plt.show()
 
     return {
@@ -110,7 +128,8 @@ def plot_distance_change_histogram(
   'p_one_tailed': p_value_one_tailed
 }
 
-def plot_category_preservation_curve(ks, category_pres_1, category_pres_3, color_base='#5B0A0B', color_mod='#E41A1C', save_path='reprGeo_default/figures/'):
+def plot_category_preservation_curve(ks, category_pres_1, category_pres_3, color_base='#5B0A0B', color_mod='#E41A1C', 
+save_path='reprGeo_default/figures/', layer_name='output', show_layer_name: bool = False):
     # --- Plotting ---
     plt.figure(figsize=(4.5, 4.2)) # Adjust size as needed
 
@@ -120,10 +139,15 @@ def plot_category_preservation_curve(ks, category_pres_1, category_pres_3, color
     plt.plot(ks, category_pres_1,
             label="Baseline", color=color_base, linestyle='--', linewidth=3) # Dashed line for baseline
 
+    # Improve readability with larger fonts and updated labels
+    base_title = "Local Category Preservation via k-NN"
+    quick_layer_label = LAYER_NAME_MAP.get(layer_name, layer_name)
+    full_title = f"{base_title}\n{quick_layer_label}" if show_layer_name else base_title
+
     # Add labels, title, and legend with larger fonts
     plt.xlabel("Number of Neighbors (k)", fontsize=DEFAULT_FONTS['axis'])
     plt.ylabel("Proportion Same Category", fontsize=DEFAULT_FONTS['axis']) # Assuming y-axis is a proportion
-    plt.title("Local Category Preservation via k-NN", fontsize=DEFAULT_FONTS['title'])
+    plt.title(full_title, fontsize=DEFAULT_FONTS['title'])
     plt.xticks(fontsize=DEFAULT_FONTS['ticks'])
     plt.yticks(fontsize=DEFAULT_FONTS['ticks'])
     plt.legend(fontsize=DEFAULT_FONTS['legend'])
@@ -138,7 +162,7 @@ def plot_category_preservation_curve(ks, category_pres_1, category_pres_3, color
     plt.tight_layout()
     # Add savefig command if needed
     if save_path:
-        plt.savefig(f'{save_path}Category Preservation-Local.pdf', bbox_inches='tight')
+        plt.savefig(f'{save_path}{layer_name}_Category Preservation-Local.pdf', bbox_inches='tight')
     plt.show()
 
 
@@ -148,7 +172,9 @@ def plot_category_distance_change_heatmap(
     tick_spacing=4,
     cmap='RdBu_r',
     vmin=-0.02,vmax=0.02,
-    save_path='reprGeo_default/figures/'
+    save_path='reprGeo_default/figures/',
+    layer_name='output',
+    show_layer_name: bool = False
 ):
     """
     Plot a half-masked heatmap of average distance changes between category pairs.
@@ -171,6 +197,10 @@ def plot_category_distance_change_heatmap(
     # Mask upper triangle
     mask = np.triu(np.ones((C, C), dtype=bool), k=1)
 
+    if vmin == None and vmax == None:
+        vmin = matrix.min()
+        vmax = matrix.max()
+    
     plt.figure(figsize=(6, 5))
     sns.heatmap(
         matrix,
@@ -195,25 +225,41 @@ def plot_category_distance_change_heatmap(
     cbar = ax.collections[0].colorbar
     cbar.ax.tick_params(labelsize=DEFAULT_FONTS['ticks'])
 
+    # Update title
+    base_title = "Between-Category Distance Change"
+    quick_layer_label = LAYER_NAME_MAP.get(layer_name, layer_name)
+    full_title = f"{base_title}\n{quick_layer_label}" if show_layer_name else base_title
+
     # Title
-    plt.title("Between-Category Distance Change", fontsize=DEFAULT_FONTS['title'], pad=20)
+    plt.title(full_title, fontsize=DEFAULT_FONTS['title'], pad=20)
     plt.tight_layout()
     if save_path:
-        plt.savefig(f'{save_path}Heatmap Category Distances-Global.pdf', bbox_inches='tight')
+        plt.savefig(f'{save_path}{layer_name}_Heatmap Category Distances-Global.pdf', bbox_inches='tight')
     plt.show()
 
 def plot_prototype_shift_pca(
     prot_base, prot_mod, act_base, act_mod,
     pca_on='baseline',
     colors=DEFAULT_COLORS,
-    save_path='reprGeo_default/figures/'
+    save_path='reprGeo_default/figures/',
+    layer_name='output',
+    show_layer_name: bool = False
 ):
     """
     2D PCA of prototypes, drawing gray lines and colored points.
     """
     # 1. fit PCA
+    
     data_for_pca = act_base if pca_on=='baseline' else torch.cat([act_base,act_mod],0)
-    pca = PCA(n_components=2)
+    pca = PCA(n_components=2) # centers X but does not rescale
+    # could also do:
+    # l2-normalize each sample first, 
+    # if want PCA axes to reflect angular (cosine) structure rather than absolute magnitude differences:
+    # e.g.: 
+    # from sklearn.preprocessing import normalize
+    # data_for_pca = normalize(data_for_pca.cpu().numpy(), norm='l2', axis=1)
+    # pca = PCA(n_components=2)
+    # pca.fit(data_for_pca)
     pca.fit(data_for_pca.cpu().numpy())
 
     pb2 = pca.transform(prot_base.cpu().numpy())
@@ -227,8 +273,13 @@ def plot_prototype_shift_pca(
     ax.scatter(pm2[:,0],pm2[:,1],c=colors['mod'],s=50, label='Modulated',zorder=3)
     ax.scatter(pb2[:,0],pb2[:,1],c=colors['base'],s=50, label='Baseline',alpha=0.8,zorder=2)
     
+    # Update title
+    base_title = "Prototype Shifts in PCA Space"
+    quick_layer_label = LAYER_NAME_MAP.get(layer_name, layer_name)
+    full_title = f"{base_title}\n{quick_layer_label}" if show_layer_name else base_title
+
     # style
-    ax.set_title("Prototype Shifts in PCA Space", fontsize=DEFAULT_FONTS['title'], pad=10)
+    ax.set_title(full_title, fontsize=DEFAULT_FONTS['title'], pad=10)
     for spine in ('top','right','left','bottom'):
         ax.spines[spine].set_visible(False)
     ax.tick_params(left=False,bottom=False,labelleft=False,labelbottom=False)
@@ -239,7 +290,7 @@ def plot_prototype_shift_pca(
     ax.arrow(0,ymin,0,ymax-ymin,head_width=(xmax-xmin)*0.02, length_includes_head=True, color='k')
     ax.text(xmax,0.02*(ymax-ymin),'PC1',ha='right',va='bottom',fontsize=DEFAULT_FONTS['axis'])
     ax.text(0.02*(xmax-xmin),ymax,'PC2',ha='left',va='top',fontsize=DEFAULT_FONTS['axis'])
-    plt.savefig(f'{save_path}Prototype Shifts PCA-Global.pdf', bbox_inches='tight')
+    plt.savefig(f'{save_path}{layer_name}_Prototype Shifts PCA-Global.pdf', bbox_inches='tight')
     plt.tight_layout()
     plt.show()
 
@@ -247,7 +298,9 @@ def plot_prototype_shift_pca(
 def plot_shift_vs_separation_kde(
     shift_dist, baseline_sep,
     colors=DEFAULT_COLORS,
-    save_path='reprGeo_default/figures/'
+    save_path='reprGeo_default/figures/',
+    layer_name='output',
+    show_layer_name: bool = False
 ):
     """
     Overlaid KDEs of shift_dist and baseline_sep, with mean lines.
@@ -257,7 +310,13 @@ def plot_shift_vs_separation_kde(
     ax.axvline(shift_dist.mean(),   color=colors['mod'], linestyle='--', label=f"Mean Shift ({shift_dist.mean():.3f})")
     sns.kdeplot(baseline_sep, color=colors['base'],  fill=True, ax=ax, label='Baseline Separation', alpha=0.3)
     ax.axvline(baseline_sep.mean(), color=colors['base'],linestyle=':', label=f"Mean Sep ({baseline_sep.mean():.3f})")
-    ax.set_title('Prototype Shifts vs. Baseline Separations', fontsize=DEFAULT_FONTS['title'])
+
+    # Update title
+    base_title = 'Prototype Shifts vs. Baseline Separations'
+    quick_layer_label = LAYER_NAME_MAP.get(layer_name, layer_name)
+    full_title = f"{base_title}\n{quick_layer_label}" if show_layer_name else base_title
+
+    ax.set_title(full_title, fontsize=DEFAULT_FONTS['title'])
     ax.set_xlabel("Cosine Distance", fontsize=DEFAULT_FONTS['axis'])
     ax.set_ylabel("Density", fontsize=DEFAULT_FONTS['axis'])
     ax.tick_params(labelsize=DEFAULT_FONTS['ticks'])
@@ -265,13 +324,15 @@ def plot_shift_vs_separation_kde(
     ax.spines['right'].set_visible(False)
     ax.legend(fontsize=DEFAULT_FONTS['legend'], loc='upper center', bbox_to_anchor=(0.4, 1.0)) # 
     plt.tight_layout()
-    plt.savefig(f'{save_path}Overlaid_Shift_Separation_KDE-Global.pdf', bbox_inches='tight')
+    plt.savefig(f'{save_path}{layer_name}_Overlaid_Shift_Separation_KDE-Global.pdf', bbox_inches='tight')
     plt.show()
 
 
 def plot_local_global_correlation(global_avg, local_avg, global_all, local_all,
     error_type='sem', annotate=False,
-    save_path='reprGeo_default/figures/'
+    save_path='reprGeo_default/figures/',
+    layer_name='output',
+    show_layer_name: bool = False
 ):
     """
     Scatter global_avg vs. local_avg with error bars from “all” dicts.
@@ -302,10 +363,20 @@ def plot_local_global_correlation(global_avg, local_avg, global_all, local_all,
     )
     plt.xlabel("Global Prototype Shift (cosine)", fontsize=DEFAULT_FONTS['axis'])
     plt.ylabel("Local Cluster Change (cosine)", fontsize=DEFAULT_FONTS['axis'])
-    plt.title("Global Shift vs. Local Compaction", fontsize=DEFAULT_FONTS['title'])
+
+    # Update title
+    base_title = "Global Shift vs. Local Compaction"
+    quick_layer_label = LAYER_NAME_MAP.get(layer_name, layer_name)
+    full_title = f"{base_title}\n{quick_layer_label}" if show_layer_name else base_title
+
+    plt.title(full_title, fontsize=DEFAULT_FONTS['title'])
+    
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(mticker.MaxNLocator(nbins=7, prune='both'))
+    ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=7, prune='both'))
+    
     plt.xticks(fontsize=DEFAULT_FONTS['ticks'])
     plt.yticks(fontsize=DEFAULT_FONTS['ticks'])
-    ax = plt.gca()
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
@@ -316,7 +387,8 @@ def plot_local_global_correlation(global_avg, local_avg, global_all, local_all,
             verticalalignment='bottom',
             bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
 
+    
     if save_path:
-        plt.savefig(f'{save_path}Correlation Plot-Global_Local.pdf', bbox_inches='tight')
+        plt.savefig(f'{save_path}{layer_name}_Correlation Plot-Global_Local.pdf', bbox_inches='tight')
     plt.tight_layout()
     plt.show()

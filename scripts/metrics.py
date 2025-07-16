@@ -165,7 +165,7 @@ def compute_between_prototype_changes(
     C = prot_base.size(0)
     # compute full cosine-sim matrices
     sim_b = F.cosine_similarity(prot_base.unsqueeze(1), prot_base.unsqueeze(0), dim=-1)
-    sim_m = F.cosine_similarity(prot_mod.unsqueeze(1),  prot_mod.unsqueeze(0),   dim=-1)
+    sim_m = F.cosine_similarity(prot_mod.unsqueeze(1),  prot_mod.unsqueeze(0), dim=-1)
     dist_b = 1. - sim_b
     dist_m = 1. - sim_m
 
@@ -230,7 +230,10 @@ def cross_validation_analysis(
     for c in unique_labels:
         idx = (labels == c).nonzero(as_tuple=True)[0]
         n   = idx.numel()
-        perm= torch.randperm(n, generator=torch.Generator(device=device).manual_seed(42))
+        # perm= torch.randperm(n, generator=torch.Generator(device=device).manual_seed(42))
+        gen  = torch.Generator()  
+        gen.manual_seed(42)
+        perm = torch.randperm(n, generator=gen, device=idx.device)
         idx = idx[perm]
         fold_size = n // k
 

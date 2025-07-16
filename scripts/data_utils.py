@@ -38,7 +38,7 @@ def create_dataLoader(dataset_path, transform, idx2number, batch_size, num_worke
     return val_dataloader
 
 
-def get_activation(model, dataloader: DataLoader, layer_of_interest, feature_extractor, number2label, device, forward_passes=1, drop_state=True):
+def get_activation(model, dataloader: DataLoader, layer_of_interest, feature_extractor, number2label, device, forward_passes=1, drop_state=True, get_accuracy=True):
     model.eval()
 
     activations = []
@@ -66,17 +66,22 @@ def get_activation(model, dataloader: DataLoader, layer_of_interest, feature_ext
             categories.extend([number2label[label.item()] for label in labels])
             allLabels.extend(labels)
 
-            # Calculate accuracy
-            _, predicted = torch.max(outputs[-1], 1)  # Get the predictions from the final layer
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+            if get_accuracy:
+                # Calculate accuracy
+                _, predicted = torch.max(outputs[-1], 1)  # Get the predictions from the final layer
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
     
-    # Flatten activations
-    activations = torch.cat(activations, dim=0)
-    allLabels = torch.tensor(allLabels)
+        # Flatten activations
+        activations = torch.cat(activations, dim=0)
+        allLabels = torch.tensor(allLabels)
 
-    # Calculate accuracy
-    accuracy = 100 * correct / total
-    print(f'Accuracy: {accuracy:.2f}%')
+    if get_accuracy:
+        # Calculate accuracy
+        accuracy = 100 * correct / total
+        print(f'Accuracy: {accuracy:.2f}%')
+    
+    else:
+        accuracy = None
 
     return activations, categories, allLabels, accuracy
